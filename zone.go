@@ -12,7 +12,7 @@ import (
 )
 
 type zoneImpl struct {
-	Hosts map[string]net.IP `json:"hosts"`
+	Hosts map[string]net.IP
 	ttl   uint32
 }
 
