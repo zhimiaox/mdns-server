@@ -19,26 +19,26 @@ type zoneImpl struct {
 func (h *zoneImpl) Records(q dns.Question) []dns.RR {
 	if ip, ok := h.Hosts[q.Name]; ok {
 		rr := make([]dns.RR, 0)
-		if ip6 := ip.To16(); ip6 != nil {
+		if len(ip) == net.IPv6len {
 			rr = append(rr, &dns.AAAA{
 				Hdr: dns.RR_Header{
-					Name:   "zhimiao mdns server",
+					Name:   q.Name,
 					Rrtype: dns.TypeAAAA,
 					Class:  dns.ClassINET,
 					Ttl:    h.ttl,
 				},
-				AAAA: ip6,
+				AAAA: ip.To16(),
 			})
 		}
-		if ip4 := ip.To4(); ip4 != nil {
+		if len(ip) == net.IPv4len {
 			rr = append(rr, &dns.A{
 				Hdr: dns.RR_Header{
-					Name:   "zhimiao mdns server",
+					Name:   q.Name,
 					Rrtype: dns.TypeA,
 					Class:  dns.ClassINET,
 					Ttl:    h.ttl,
 				},
-				A: ip4,
+				A: ip.To4(),
 			})
 		}
 		slog.Info("answer", "rr", rr)
@@ -55,14 +55,27 @@ func NewZone() mdns.Zone {
 	impl := &zoneImpl{
 		Hosts: map[string]net.IP{},
 	}
-	err = json.Unmarshal(confRaw, &impl.Hosts)
+	hosts := make(map[string]string)
+	err = json.Unmarshal(confRaw, &hosts)
 	if err != nil {
 		panic(err)
 	}
-	for k, v := range impl.Hosts {
+	for k, v := range hosts {
 		if !strings.HasSuffix(k, ".") {
-			impl.Hosts[k+"."] = v
+			k += "."
 		}
+		ip := net.ParseIP(v)
+		if ip == nil {
+			continue
+		}
+		if strings.Contains(v, ".") {
+			ip = ip.To4()
+		} else if strings.Contains(v, ":") {
+			ip = ip.To16()
+		} else {
+			continue
+		}
+		impl.Hosts[k] = ip
 	}
 	impl.ttl = 120
 	return impl
