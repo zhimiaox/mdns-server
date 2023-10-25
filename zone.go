@@ -17,6 +17,7 @@ type zoneImpl struct {
 }
 
 func (h *zoneImpl) Records(q dns.Question) []dns.RR {
+	slog.Info("records", "question", q.Name)
 	if ip, ok := h.Hosts[q.Name]; ok {
 		rr := make([]dns.RR, 0)
 		if len(ip) == net.IPv6len {
@@ -77,6 +78,7 @@ func NewZone() mdns.Zone {
 		}
 		impl.Hosts[k] = ip
 	}
+	slog.Info("加载配置", "hosts", impl.Hosts)
 	impl.ttl = 120
 	return impl
 }
